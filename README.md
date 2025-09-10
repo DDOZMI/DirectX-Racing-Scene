@@ -2,7 +2,6 @@
 
 시연 영상(클릭)<br>
 [![Video Label](http://img.youtube.com/vi/Cyxn7jwYV2s/0.jpg)](https://youtu.be/Cyxn7jwYV2s)
-<iframe>https://youtu.be/Cyxn7jwYV2s</iframe>
 
 **내용**
 - 다수의 모델과 인스턴싱을 이용해 씬 구성
