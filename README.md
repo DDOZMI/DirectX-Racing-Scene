@@ -3,6 +3,8 @@
 시연 영상(클릭)<br>
 [![Video Label](http://img.youtube.com/vi/i9_w4YrA8I4/0.jpg)](https://youtu.be/i9_w4YrA8I4)
 
+<img width="990" height="1401" alt="Image" src="https://github.com/user-attachments/assets/9b7aef7d-0e6c-4482-9b23-c9052125310a" />
+
 **내용**
 - 다수의 모델과 인스턴싱을 이용해 씬 구성
 - Phong light와 3개의 Point light 설정/거리에 따른 감쇠 효과 적용
