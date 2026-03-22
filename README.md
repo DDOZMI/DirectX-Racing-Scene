@@ -3,8 +3,6 @@
 시연 영상(클릭)<br>
 [![Video Label](http://img.youtube.com/vi/i9_w4YrA8I4/0.jpg)](https://youtu.be/i9_w4YrA8I4)
 
-<img width="990" height="1401" alt="Image" src="https://github.com/user-attachments/assets/9b7aef7d-0e6c-4482-9b23-c9052125310a" />
-
 **내용**
 - 다수의 모델과 인스턴싱을 이용해 씬 구성
 - Phong light와 3개의 Point light 설정/거리에 따른 감쇠 효과 적용
@@ -33,3 +31,5 @@
 - 적당한 polygon을 가진 무료 모델을 찾고 수정하는 것에 절반의 시간이 들어갔다.
 - Multi-texturing을 구현하는 과정에서 텍스쳐 없이 기본 색상만으로 만들어진 모델은 호환되지 않는 방식으로 코드를 만들어서 일부 모델들은 직접 텍스쳐를 만들어 넣어주어야 했다.
 - 한 개의 텍스쳐 파일로 여러 부위를 적용하는 모델은 같은 텍스쳐 파일을 중복해 등록해야만 하는 불편함이 있다.
+
+<img width="990" height="1401" alt="Image" src="https://github.com/user-attachments/assets/9b7aef7d-0e6c-4482-9b23-c9052125310a" />
