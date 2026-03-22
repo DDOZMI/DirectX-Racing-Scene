@@ -12,7 +12,7 @@ JsonSettingsLoader::~JsonSettingsLoader()
 
 bool JsonSettingsLoader::LoadModelsConfig(const char* configFile, std::vector<ModelConfig>& modelConfigs)
 {
-	// JSON ÆÄÀÏ ÀĞ±â
+	// JSON íŒŒì¼ ì½ê¸°
 	FILE* fp = fopen(configFile, "rb");
 	if (!fp)
 	{
@@ -31,7 +31,7 @@ bool JsonSettingsLoader::LoadModelsConfig(const char* configFile, std::vector<Mo
 		return false;
 	}
 
-	// JSON ÆÄ½Ì
+	// JSON íŒŒì‹±
 	if (!document.HasMember("models") || !document["models"].IsArray())
 	{
 		return false;
@@ -46,7 +46,7 @@ bool JsonSettingsLoader::LoadModelsConfig(const char* configFile, std::vector<Mo
 		const rapidjson::Value& model = models[i];
 		ModelConfig config;
 
-		// ±âº» Á¤º¸ ÀĞ±â
+		// ê¸°ë³¸ ì •ë³´ ì½ê¸°
 		if (model.HasMember("id") && model["id"].IsInt())
 			config.id = model["id"].GetInt();
 
@@ -59,7 +59,7 @@ bool JsonSettingsLoader::LoadModelsConfig(const char* configFile, std::vector<Mo
 		if (model.HasMember("instanceCount") && model["instanceCount"].IsUint())
 			config.instanceCount = model["instanceCount"].GetUint();
 
-		// ÀÎ½ºÅÏ½º Á¤º¸ ÀĞ±â
+		// ì¸ìŠ¤í„´ìŠ¤ ì •ë³´ ì½ê¸°
 		if (model.HasMember("instances") && model["instances"].IsArray())
 		{
 			const rapidjson::Value& instances = model["instances"];
@@ -86,7 +86,7 @@ bool JsonSettingsLoader::LoadModelsConfig(const char* configFile, std::vector<Mo
 			}
 		}
 
-		// ÅØ½ºÃ³ ÆÄÀÏ Á¤º¸ ÀĞ±â
+		// í…ìŠ¤ì²˜ íŒŒì¼ ì •ë³´ ì½ê¸°
 		if (model.HasMember("textureFiles") && model["textureFiles"].IsArray())
 		{
 			const rapidjson::Value& textures = model["textureFiles"];
@@ -98,7 +98,7 @@ bool JsonSettingsLoader::LoadModelsConfig(const char* configFile, std::vector<Mo
 				if (textures[j].IsString())
 				{
 					std::wstring textureFile = StringToWString(textures[j].GetString());
-					// wstringÀ» WCHAR*·Î º¯È¯ÇÏ¿© ÀúÀå (ÁÖÀÇ: ¸Ş¸ğ¸® °ü¸® ÇÊ¿ä)
+					// wstringì„ WCHAR*ë¡œ ë³€í™˜í•˜ì—¬ ì €ì¥ (ì£¼ì˜: ë©”ëª¨ë¦¬ ê´€ë¦¬ í•„ìš”)
 					WCHAR* texturePtr = new WCHAR[textureFile.length() + 1];
 					wcscpy_s(texturePtr, textureFile.length() + 1, textureFile.c_str());
 					config.textureFiles.push_back(texturePtr);
@@ -106,7 +106,7 @@ bool JsonSettingsLoader::LoadModelsConfig(const char* configFile, std::vector<Mo
 			}
 		}
 
-		// ¿ùµå ¸ÅÆ®¸¯½º Á¤º¸ ÀĞ±â
+		// ì›”ë“œ ë§¤íŠ¸ë¦­ìŠ¤ ì •ë³´ ì½ê¸°
 		if (model.HasMember("worldMatrix") && model["worldMatrix"].IsObject())
 		{
 			const rapidjson::Value& wm = model["worldMatrix"];

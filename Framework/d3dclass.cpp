@@ -77,14 +77,14 @@ bool D3DClass::Initialize(int screenWidth, int screenHeight, bool vsync, HWND hw
 	blendStateDescription.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
 	blendStateDescription.RenderTarget[0].RenderTargetWriteMask = 0x0f;
 
-	// ºí·»µå »óÅÂ »ý¼º
+	// ë¸”ë Œë“œ ìƒíƒœ ìƒì„±
 	result = m_device->CreateBlendState(&blendStateDescription, &m_alphaEnableBlendingState);
 	if (FAILED(result))
 	{
 		return false;
 	}
 
-	// ¾ËÆÄ ºí·»µùÀ» ºñÈ°¼ºÈ­ÇÏ´Â »óÅÂµµ »ý¼º
+	// ì•ŒíŒŒ ë¸”ë Œë”©ì„ ë¹„í™œì„±í™”í•˜ëŠ” ìƒíƒœë„ ìƒì„±
 	blendStateDescription.RenderTarget[0].BlendEnable = FALSE;
 	result = m_device->CreateBlendState(&blendStateDescription, &m_alphaDisableBlendingState);
 	if (FAILED(result))
@@ -206,14 +206,14 @@ bool D3DClass::InitializeSwapBuffer(int screenWidth, int screenHeight, HWND hwnd
 {
 	HRESULT result;
 
-	// ±âº» µð¹ÙÀÌ½º¿Í ½º¿ÒÃ¼ÀÎ »ý¼º
+	// ê¸°ë³¸ ë””ë°”ì´ìŠ¤ì™€ ìŠ¤ì™‘ì²´ì¸ ìƒì„±
 	DXGI_SWAP_CHAIN_DESC swapChainDesc;
 	ZeroMemory(&swapChainDesc, sizeof(swapChainDesc));
 
 	swapChainDesc.BufferCount = 1;
 	swapChainDesc.BufferDesc.Width = screenWidth;
 	swapChainDesc.BufferDesc.Height = screenHeight;
-	swapChainDesc.BufferDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM; // Direct2D È£È¯¼ºÀ» À§ÇÑ ¼³Á¤
+	swapChainDesc.BufferDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM; // Direct2D í˜¸í™˜ì„±ì„ ìœ„í•œ ì„¤ì •
 	swapChainDesc.BufferDesc.RefreshRate.Numerator = m_vsync_enabled ? m_refreshRateNumerator : 0;
 	swapChainDesc.BufferDesc.RefreshRate.Denominator = m_vsync_enabled ? m_refreshRateDenominator : 1;
 	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
@@ -226,19 +226,19 @@ bool D3DClass::InitializeSwapBuffer(int screenWidth, int screenHeight, HWND hwnd
 
 	D3D_FEATURE_LEVEL featureLevel = D3D_FEATURE_LEVEL_11_0;
 
-	// Direct2D È£È¯¼ºÀ» À§ÇÑ ÇÃ·¡±× Ãß°¡
+	// Direct2D í˜¸í™˜ì„±ì„ ìœ„í•œ í”Œëž˜ê·¸ ì¶”ê°€
 	UINT creationFlags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
 
 	result = D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, creationFlags,
 		&featureLevel, 1, D3D11_SDK_VERSION, &swapChainDesc, &m_swapChain, &m_device, nullptr, &m_deviceContext);
 	if (FAILED(result)) return false;
 
-	// ¹é¹öÆÛ °¡Á®¿À±â
+	// ë°±ë²„í¼ ê°€ì ¸ì˜¤ê¸°
 	ID3D11Texture2D* backBuffer;
 	result = m_swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&backBuffer);
 	if (FAILED(result)) return false;
 
-	// D3D ·»´õÅ¸°Ù ºä »ý¼º
+	// D3D ë Œë”íƒ€ê²Ÿ ë·° ìƒì„±
 	result = m_device->CreateRenderTargetView(backBuffer, nullptr, &m_renderTargetView);
 	if (FAILED(result))
 	{
@@ -246,7 +246,7 @@ bool D3DClass::InitializeSwapBuffer(int screenWidth, int screenHeight, HWND hwnd
 		return false;
 	}
 
-	// Direct2D Factory »ý¼º
+	// Direct2D Factory ìƒì„±
 	result = D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &m_d2dFactory);
 	if (FAILED(result))
 	{
@@ -254,7 +254,7 @@ bool D3DClass::InitializeSwapBuffer(int screenWidth, int screenHeight, HWND hwnd
 		return false;
 	}
 
-	// Direct2D RenderTarget »ý¼º
+	// Direct2D RenderTarget ìƒì„±
 	IDXGISurface* dxgiBackBuffer;
 	result = backBuffer->QueryInterface(__uuidof(IDXGISurface), (void**)&dxgiBackBuffer);
 	if (SUCCEEDED(result))
@@ -544,7 +544,7 @@ void D3DClass::BeginScene(float red, float green, float blue, float alpha)
 	}
 }
 
-// EndScene ¼öÁ¤
+// EndScene ìˆ˜ì •
 void D3DClass::EndScene()
 {
 	if (m_d2dRenderTarget)

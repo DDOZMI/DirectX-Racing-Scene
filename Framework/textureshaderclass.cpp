@@ -228,7 +228,7 @@ bool TextureShaderClass::InitializeShader(ID3D11Device* device, HWND hwnd, const
 		return false;
 	}
 
-	// textureInfoBuffer ¼³Á¤
+	// textureInfoBuffer ì„¤ì •
 	textureInfoBufferDesc.Usage = D3D11_USAGE_DYNAMIC;
 	textureInfoBufferDesc.ByteWidth = sizeof(TextureInfoBufferType);
 	textureInfoBufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
@@ -236,7 +236,7 @@ bool TextureShaderClass::InitializeShader(ID3D11Device* device, HWND hwnd, const
 	textureInfoBufferDesc.MiscFlags = 0;
 	textureInfoBufferDesc.StructureByteStride = 0;
 
-	// textureInfoBuffer »ý¼º
+	// textureInfoBuffer ìƒì„±
 	result = device->CreateBuffer(&textureInfoBufferDesc, nullptr, &m_textureInfoBuffer);
 	if (FAILED(result))
 	{
@@ -248,7 +248,7 @@ bool TextureShaderClass::InitializeShader(ID3D11Device* device, HWND hwnd, const
 		return false;
 	}
 
-	// RotationBuffer ¼³Á¤
+	// RotationBuffer ì„¤ì •
 	D3D11_BUFFER_DESC rotationBufferDesc;
 	rotationBufferDesc.Usage = D3D11_USAGE_DYNAMIC;
 	rotationBufferDesc.ByteWidth = sizeof(RotationBufferType);
@@ -257,14 +257,14 @@ bool TextureShaderClass::InitializeShader(ID3D11Device* device, HWND hwnd, const
 	rotationBufferDesc.MiscFlags = 0;
 	rotationBufferDesc.StructureByteStride = 0;
 
-	// RotationBuffer »ý¼º
+	// RotationBuffer ìƒì„±
 	result = device->CreateBuffer(&rotationBufferDesc, nullptr, &m_rotationBuffer);
 	if (FAILED(result))
 	{
 		return false;
 	}
 
-	// Light buffer ¼³Á¤
+	// Light buffer ì„¤ì •
 	D3D11_BUFFER_DESC lightBufferDesc;
 	lightBufferDesc.Usage = D3D11_USAGE_DYNAMIC;
 	lightBufferDesc.ByteWidth = sizeof(LightBufferType);
@@ -279,7 +279,7 @@ bool TextureShaderClass::InitializeShader(ID3D11Device* device, HWND hwnd, const
 		return false;
 	}
 
-	// Point Light buffer ¼³Á¤
+	// Point Light buffer ì„¤ì •
 	D3D11_BUFFER_DESC pointLightBufferDesc;
 	pointLightBufferDesc.Usage = D3D11_USAGE_DYNAMIC;
 	pointLightBufferDesc.ByteWidth = sizeof(PointLightBufferType);
@@ -315,7 +315,7 @@ void TextureShaderClass::ShutdownShader()
 		m_matrixBuffer = nullptr;
 	}
 
-	// ÅØ½ºÃÄ Á¤º¸ ¹öÆÛ ÇØÁ¦
+	// í…ìŠ¤ì³ ì •ë³´ ë²„í¼ í•´ì œ
 	if (m_textureInfoBuffer)
 	{
 		m_textureInfoBuffer->Release();
@@ -532,15 +532,15 @@ void TextureShaderClass::RenderShader(ID3D11DeviceContext* deviceContext,
 	deviceContext->VSSetShader(m_vertexShader, NULL, 0);
 	deviceContext->PSSetShader(m_pixelShader, NULL, 0);
 
-	// ÀÎ½ºÅÏ½º °³¼ö¿¡ µû¶ó ·»´õ¸µ ¹æ½Ä °áÁ¤
+	// ì¸ìŠ¤í„´ìŠ¤ ê°œìˆ˜ì— ë”°ë¼ ë Œë”ë§ ë°©ì‹ ê²°ì •
 	if (instanceCount > 1)
 	{
-		// ÀÎ½ºÅÏ½ÌÀ» »ç¿ëÇÑ ·»´õ¸µ
+		// ì¸ìŠ¤í„´ì‹±ì„ ì‚¬ìš©í•œ ë Œë”ë§
 		deviceContext->DrawIndexedInstanced(indexCount, instanceCount, startIndexLocation, 0, 0);
 	}
 	else
 	{
-		// ÀÏ¹Ý ·»´õ¸µ
+		// ì¼ë°˜ ë Œë”ë§
 		deviceContext->DrawIndexed(indexCount, startIndexLocation, 0);
 	}
 

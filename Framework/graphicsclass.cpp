@@ -14,6 +14,8 @@ GraphicsClass::GraphicsClass()
 	m_JsonLoader = nullptr;
 	m_Drive = nullptr;
 	m_Timer = nullptr;
+	m_Sound = nullptr;
+	m_Dashboard = nullptr;
 
 	m_Model.resize(NUM_OF_MODELS);
 	textureFilenames.resize(NUM_OF_MODELS);
@@ -26,20 +28,20 @@ GraphicsClass::GraphicsClass()
 
 	m_backFaceCulling = true;
 	m_wireframeMode = false;
-
 	m_ambientEnabled = true;
 	m_diffuseEnabled = true;
 	m_specularEnabled = true;
-
 	m_showText = true;
-
 	m_isLoading = true;
 	m_loadingComplete = false;
+	m_showCollisionInfo = false;
+	m_soundEnabled = true;
 
-	// ¿îÀü °ü·Ã ÃÊ±âÈ­
 	m_previousPickingState = false;
 	m_originalCameraPos = XMFLOAT3(20.0f, 20.0f, -130.0f);
 	m_originalCameraRot = XMFLOAT3(0.0f, 0.0f, 0.0f);
+
+	m_wasColliding = false;
 }
 
 
@@ -57,14 +59,14 @@ bool GraphicsClass::Initialize(int screenWidth, int screenHeight, HWND hwnd)
 {
 	bool result;
 
-	// JSON ·Î´õ »ı¼º
+	// JSON ë¡œë” ìƒì„±
 	m_JsonLoader = new JsonSettingsLoader;
 	if (!m_JsonLoader)
 	{
 		return false;
 	}
 
-	// JSON ¼³Á¤ ÆÄÀÏ ·Îµå
+	// JSON ì„¤ì • íŒŒì¼ ë¡œë“œ
 	result = m_JsonLoader->LoadModelsConfig("./data/Settings.json", m_modelConfigs);
 	if (!result)
 	{
@@ -171,12 +173,17 @@ bool GraphicsClass::Initialize(int screenWidth, int screenHeight, HWND hwnd)
 	}
 	m_Cpu->Initialize();
 
+	m_Sound = new SoundClass;
+	if ( !m_Sound )
+	{
+		return false;
+	}
+
 	m_Picking = new PickingClass;
 	if (!m_Picking)
 	{
 		return false;
 	}
-
 	result = m_Picking->Initialize(screenWidth, screenHeight);
 	if (!result)
 	{
@@ -184,7 +191,7 @@ bool GraphicsClass::Initialize(int screenWidth, int screenHeight, HWND hwnd)
 		return false;
 	}
 
-	// Å¸ÀÌ¸Ó Å¬·¡½º ÃÊ±âÈ­ Ãß°¡
+	// íƒ€ì´ë¨¸ í´ë˜ìŠ¤ ì´ˆê¸°í™” ì¶”ê°€
 	m_Timer = new TimerClass;
 	if (!m_Timer)
 	{
@@ -197,13 +204,24 @@ bool GraphicsClass::Initialize(int screenWidth, int screenHeight, HWND hwnd)
 		return false;
 	}
 
-	// ¿îÀü Å¬·¡½º ÃÊ±âÈ­ Ãß°¡
+	m_Dashboard = new DashboardClass;
+	if ( !m_Dashboard )
+	{
+		return false;
+	}
+	result = m_Dashboard->Initialize(m_D3D->GetDevice() , m_D3D , hwnd , screenWidth , screenHeight);
+	if ( !result )
+	{
+		MessageBox(hwnd , L"Could not initialize the dashboard object." , L"Error" , MB_OK);
+		return false;
+	}
+
+	// ìš´ì „ í´ë˜ìŠ¤ ì´ˆê¸°í™” ì¶”ê°€
 	m_Drive = new DriveClass;
 	if (!m_Drive)
 	{
 		return false;
 	}
-
 	result = m_Drive->Initialize();
 	if (!result)
 	{
@@ -215,6 +233,30 @@ bool GraphicsClass::Initialize(int screenWidth, int screenHeight, HWND hwnd)
 	for (int i = 0; i < m_modelConfigs.size() && i < NUM_OF_MODELS; i++)
 	{
 		m_modelNames[i] = m_modelConfigs[i].name;
+	}
+
+	// ì¶©ëŒ ì‹œìŠ¤í…œ ì´ˆê¸°í™”
+	m_Collision = new CollisionClass;
+	if ( !m_Collision )
+	{
+		return false;
+	}
+	result = m_Collision->Initialize();
+	if ( !result )
+	{
+		MessageBox(hwnd , L"Could not initialize the collision system." , L"Error" , MB_OK);
+		return false;
+	}
+
+	// ëª¨ë¸ë“¤ì´ ëª¨ë‘ ë¡œë“œëœ í›„ Collider ì„¤ì •
+	if ( m_loadingComplete )
+	{
+		result = m_Collision->SetupModelColliders(m_modelConfigs , m_Model);
+		if ( !result )
+		{
+			MessageBox(hwnd , L"Could not setup model colliders." , L"Error" , MB_OK);
+			return false;
+		}
 	}
 
 	return true;
@@ -279,6 +321,13 @@ void GraphicsClass::Shutdown()
 		m_Cpu = nullptr;
 	}
 
+	if ( m_Sound )
+	{
+		m_Sound->Shutdown();
+		delete m_Sound;
+		m_Sound = nullptr;
+	}
+
 	if (m_Font)
 	{
 		m_Font->Shutdown();
@@ -312,6 +361,20 @@ void GraphicsClass::Shutdown()
 		m_Timer = nullptr;
 	}
 
+	if ( m_Dashboard )
+	{
+		m_Dashboard->Shutdown();
+		delete m_Dashboard;
+		m_Dashboard = nullptr;
+	}
+
+	if ( m_Collision )
+	{
+		m_Collision->Shutdown();
+		delete m_Collision;
+		m_Collision = nullptr;
+	}
+
 	return;
 }
 
@@ -322,19 +385,19 @@ bool GraphicsClass::LoadWithThreadPool(HWND hwnd)
 	std::condition_variable cv;
 	std::atomic<int> remainingTasks(NUM_OF_MODELS);
 
-	// ¸ÖÆ¼ ½º·¹µå Ç® ¼³Á¤
+	// ë©€í‹° ìŠ¤ë ˆë“œ í’€ ì„¤ì •
 	std::queue<int> taskQueue;
 	const int threadCount = std::thread::hardware_concurrency();
 	std::vector<std::thread> threadPool(threadCount);
 	std::atomic<bool> stopThreads(false);
 
-	// ¸ğµç ÀÛ¾÷À» Å¥¿¡ õÚ°¡
+	// ëª¨ë“  ì‘ì—…ì„ íì— è¿½ê°€
 	for (int i = 0; i < NUM_OF_MODELS; i++) 
 	{
 		taskQueue.push(i);
 	}
 
-	// ¿öÄ¿ ÇÔ¼ö Á¤ÀÇ
+	// ì›Œì»¤ í•¨ìˆ˜ ì •ì˜
 	auto workerFunction = [this, &taskQueue, &mtx, &cv, &stopThreads, &modelsFailed,
 		&remainingTasks, hwnd]()
 		{
@@ -342,7 +405,7 @@ bool GraphicsClass::LoadWithThreadPool(HWND hwnd)
 			{
 				int modelIndex;
 
-				// ÀÛ¾÷ °¡Á®¿À±â
+				// ì‘ì—… ê°€ì ¸ì˜¤ê¸°
 				{
 					std::unique_lock<std::mutex> lock(mtx);
 					if (!taskQueue.empty())
@@ -351,7 +414,7 @@ bool GraphicsClass::LoadWithThreadPool(HWND hwnd)
 						taskQueue.pop();
 					}
 					else {
-						// ´õ ÀÌ»ó ÀÛ¾÷ÀÌ ¾øÀ¸¸é Á¶°Ç º¯¼ö ´ë±â
+						// ë” ì´ìƒ ì‘ì—…ì´ ì—†ìœ¼ë©´ ì¡°ê±´ ë³€ìˆ˜ ëŒ€ê¸°
 						cv.wait_for(lock, std::chrono::milliseconds(100),
 							[&stopThreads, &taskQueue]()
 							{
@@ -363,7 +426,7 @@ bool GraphicsClass::LoadWithThreadPool(HWND hwnd)
 
 				if (modelIndex >= 0)
 				{
-					// ¸ğµ¨ ·Îµù ÀÛ¾÷ ¼öÇà
+					// ëª¨ë¸ ë¡œë”© ì‘ì—… ìˆ˜í–‰
 					bool loadResult = loadModel(modelIndex);
 
 					if (!loadResult)
@@ -371,29 +434,29 @@ bool GraphicsClass::LoadWithThreadPool(HWND hwnd)
 						++modelsFailed;
 					}
 
-					// ³²Àº ÀÛ¾÷ ¼ö °¨¼Ò
+					// ë‚¨ì€ ì‘ì—… ìˆ˜ ê°ì†Œ
 					if (--remainingTasks == 0)
 					{
-						// ¸ğµç ÀÛ¾÷ ¿Ï·á ½Ã Á¶°Ç º¯¼ö ¾Ë¸²
+						// ëª¨ë“  ì‘ì—… ì™„ë£Œ ì‹œ ì¡°ê±´ ë³€ìˆ˜ ì•Œë¦¼
 						cv.notify_all();
 					}
 				}
 			}
 		};
 
-	// ½º·¹µå Ç® ½ÃÀÛ
+	// ìŠ¤ë ˆë“œ í’€ ì‹œì‘
 	for (int i = 0; i < threadCount; i++)
 	{
 		threadPool[i] = std::thread(workerFunction);
 	}
 
-	// ¸ğµç ÀÛ¾÷ÀÌ ¿Ï·áµÉ ¶§±îÁö ´ë±â
+	// ëª¨ë“  ì‘ì—…ì´ ì™„ë£Œë  ë•Œê¹Œì§€ ëŒ€ê¸°
 	{
 		std::unique_lock<std::mutex> lock(mtx);
 		cv.wait(lock, [&remainingTasks]() { return remainingTasks == 0; });
 	}
 
-	// ½º·¹µå Ç® Á¾·á
+	// ìŠ¤ë ˆë“œ í’€ ì¢…ë£Œ
 	stopThreads = true;
 	cv.notify_all();
 	for (auto& t : threadPool)
@@ -404,11 +467,29 @@ bool GraphicsClass::LoadWithThreadPool(HWND hwnd)
 		}
 	}
 
-	// ¸ğµ¨ ·Îµù ½ÇÆĞ È®ÀÎ
+	// ëª¨ë¸ ë¡œë”© ì‹¤íŒ¨ í™•ì¸
 	if (modelsFailed > 0)
 	{
 		MessageBox(hwnd, L"One or more models failed to initialize.", L"Error", MB_OK);
 		return false;
+	}
+
+	if ( modelsFailed == 0 && m_Collision )
+	{
+		bool result = m_Collision->SetupModelColliders(m_modelConfigs , m_Model);
+		if ( !result )
+		{
+			MessageBox(hwnd , L"Could not setup model colliders." , L"Warning" , MB_OK);
+			// ê²½ê³ ë§Œ í•˜ê³  ê³„ì† ì§„í–‰
+		}
+	}
+
+	if ( modelsFailed == 0 )
+	{
+		if ( m_Sound )
+		{
+			m_Sound->Initialize(hwnd);
+		}
 	}
 
 	return true;
@@ -419,7 +500,7 @@ bool GraphicsClass::loadModel(int idx)
 {
 	bool result = true;
 
-	// JSON¿¡¼­ ·ÎµåµÈ ¼³Á¤ÀÌ ÀÖ´ÂÁö È®ÀÎ
+	// JSONì—ì„œ ë¡œë“œëœ ì„¤ì •ì´ ìˆëŠ”ì§€ í™•ì¸
 	if (idx >= m_modelConfigs.size())
 	{
 		return false;
@@ -427,12 +508,12 @@ bool GraphicsClass::loadModel(int idx)
 
 	const ModelConfig& config = m_modelConfigs[idx];
 
-	// ±âÁ¸ º¤ÅÍ¿¡ ¼³Á¤ º¹»ç
+	// ê¸°ì¡´ ë²¡í„°ì— ì„¤ì • ë³µì‚¬
 	textureFilenames[idx] = config.textureFiles;
 	instanceInfo[idx] = config.instances;
 	instanceCount[idx] = config.instanceCount;
 
-	// ¸ğµ¨ ÃÊ±âÈ­
+	// ëª¨ë¸ ì´ˆê¸°í™”
 	result = m_Model[idx]->Initialize(m_D3D->GetDevice(),
 		config.modelFile.c_str(),
 		textureFilenames[idx],
@@ -499,23 +580,24 @@ CameraClass* GraphicsClass::GetCamera() const
 	return m_Camera;
 }
 
+
 void GraphicsClass::SetupLighting() const
 {
 	CycleLightingMode(0);
 
-	// ½ÅÈ£µî Point Light 1
+	// ì‹ í˜¸ë“± Point Light 1
 	m_Light->SetPointLightPosition(0, 169.0f, 11.4f, -107.8f);
-	m_Light->SetPointLightColor(0, 1.0f, 0.0f, 0.0f, 30.0f);  // »¡°£ºÒ
+	m_Light->SetPointLightColor(0, 1.0f, 0.0f, 0.0f, 30.0f);  // ë¹¨ê°„ë¶ˆ
 	m_Light->SetPointLightRange(0, 8.0f);
 
-	// ½ÅÈ£µî Point Light 2
+	// ì‹ í˜¸ë“± Point Light 2
 	m_Light->SetPointLightPosition(1, 198.8f, 10.8f, -107.8f);
-	m_Light->SetPointLightColor(1, 1.0f, 1.0f, 0.0f, 30.0f);  // ³ë¶õºÒ
+	m_Light->SetPointLightColor(1, 1.0f, 1.0f, 0.0f, 30.0f);  // ë…¸ë€ë¶ˆ
 	m_Light->SetPointLightRange(1, 8.0f);
 
-	// ½ÅÈ£µî Point Light 3
+	// ì‹ í˜¸ë“± Point Light 3
 	m_Light->SetPointLightPosition(2, 228.8f, 10.2f, -107.8f);
-	m_Light->SetPointLightColor(2, 0.0f, 1.0f, 0.0f, 30.0f);  // ÃÊ·ÏºÒ
+	m_Light->SetPointLightColor(2, 0.0f, 1.0f, 0.0f, 30.0f);  // ì´ˆë¡ë¶ˆ
 	m_Light->SetPointLightRange(2, 8.0f);
 }
 
@@ -523,19 +605,19 @@ void GraphicsClass::CycleLightingMode(int lightingMode) const
 {
 	switch (lightingMode)
 	{
-	case 0: // ³·
+	case 0: // ë‚®
 		m_Light->SetAmbientColor(0.4f, 0.4f, 0.4f, 1.0f);
 		m_Light->SetDiffuseColor(1.0f, 0.95f, 0.8f, 1.0f);
 		m_Light->SetDirection(0.2f, -0.9f, 0.2f);
 		break;
 
-	case 1: // ÇØÁú³á
+	case 1: // í•´ì§ˆë…
 		m_Light->SetAmbientColor(0.2f, 0.2f, 0.2f, 1.0f);
 		m_Light->SetDiffuseColor(1.0f, 0.7f, 0.4f, 1.0f);
 		m_Light->SetDirection(0.8f, -0.3f, 0.2f);
 		break;
 
-	case 2: // ¾ß°£
+	case 2: // ì•¼ê°„
 		m_Light->SetAmbientColor(0.05f, 0.05f, 0.1f, 1.0f);
 		m_Light->SetDiffuseColor(0.3f, 0.2f, 0.5f, 1.0f);
 		m_Light->SetDirection(0.0f, -1.0f, 0.0f);
@@ -544,6 +626,27 @@ void GraphicsClass::CycleLightingMode(int lightingMode) const
 
 	m_Light->SetSpecularColor(1.0f, 1.0f, 1.0f, 1.0f);
 	m_Light->SetSpecularPower(64.0f);
+}
+
+void GraphicsClass::ToggleCollisionInfo()
+{
+	m_showCollisionInfo = !m_showCollisionInfo;
+}
+
+void GraphicsClass::SetModelCollisionEnabled(int modelIndex , bool enabled)
+{
+	if ( m_Collision )
+	{
+		m_Collision->SetCollisionEnabled(modelIndex , enabled);
+	}
+}
+
+void GraphicsClass::ToggleCollisionSystem()
+{
+	if ( m_Collision )
+	{
+		m_Collision->ToggleCollisionSystem();
+	}
 }
 
 bool GraphicsClass::IsLoadingComplete() const
@@ -576,6 +679,162 @@ void GraphicsClass::RenderLoadingText(float progress) const
 	}
 }
 
+void GraphicsClass::SetSoundVolume(int volume)
+{
+	if ( m_Sound )
+	{
+		// ë³¼ë¥¨ì„ 0-100ì—ì„œ 0.0-1.0ìœ¼ë¡œ ë³€í™˜
+		float normalizedVolume = static_cast< float >( volume ) / 100.0f;
+		m_Sound->SetMasterVolume(normalizedVolume);
+	}
+}
+
+void GraphicsClass::ProcessCollisions()
+{
+	if ( !m_Collision || !m_Drive->IsDriving() )
+		return;
+
+	int drivingCarIndex = m_Drive->GetDrivingCarIndex();
+
+	// ë§¤ í”„ë ˆì„ ëª¨ë“  ì •ì  ì¶©ëŒì²´ ì—…ë°ì´íŠ¸ (ê¸°ì¡´ í•œ ë²ˆë§Œ ì—…ë°ì´íŠ¸í•˜ëŠ” ë¡œì§ ì œê±°)
+	vector<XMMATRIX> worldMatrixVector;
+	worldMatrixVector.resize(NUM_OF_MODELS);
+
+	for ( int i = 0; i < NUM_OF_MODELS && i < m_modelConfigs.size(); i++ )
+	{
+		const ModelConfig& config = m_modelConfigs[ i ];
+
+		if ( m_Drive->IsDriving() && m_Drive->GetDrivingCarIndex() == i )
+		{
+			// ìš´ì „ ì¤‘ì¸ ì°¨ëŸ‰ì€ DriveClassì—ì„œ ì œê³µí•˜ëŠ” ë§¤íŠ¸ë¦­ìŠ¤ ì‚¬ìš©
+			XMFLOAT3 carScale = XMFLOAT3(config.worldMatrix.scale.x ,
+				config.worldMatrix.scale.y ,
+				config.worldMatrix.scale.z);
+			worldMatrixVector[ i ] = m_Drive->GetCarWorldMatrix(carScale);
+		}
+		else
+		{
+			// ì¼ë°˜ ëª¨ë¸ë“¤ì€ JSON ì„¤ì • ì‚¬ìš©
+			worldMatrixVector[ i ] =
+				XMMatrixScaling(config.worldMatrix.scale.x , config.worldMatrix.scale.y , config.worldMatrix.scale.z) *
+				XMMatrixRotationX(config.worldMatrix.rotation.x) *
+				XMMatrixRotationY(config.worldMatrix.rotation.y) *
+				XMMatrixRotationZ(config.worldMatrix.rotation.z) *
+				XMMatrixTranslation(config.worldMatrix.translation.x , config.worldMatrix.translation.y , config.worldMatrix.translation.z);
+		}
+	}
+
+	// ëª¨ë“  ì¶©ëŒì²´ ì—…ë°ì´íŠ¸
+	for ( int i = 0; i < NUM_OF_MODELS; i++ )
+	{
+		if ( m_Collision->IsCollisionEnabled(i) )
+		{
+			m_Collision->UpdateCollider(i , worldMatrixVector[ i ]);
+
+			// ì¸ìŠ¤í„´ìŠ¤ ì¶©ëŒì²´ë„ ì—…ë°ì´íŠ¸
+			if ( i < m_modelConfigs.size() && m_modelConfigs[ i ].instanceCount > 1 )
+			{
+				vector<XMMATRIX> instanceMatrices;
+				instanceMatrices.reserve(m_modelConfigs[ i ].instanceCount);
+
+				// ê° ì¸ìŠ¤í„´ìŠ¤ì˜ ì›”ë“œ ë§¤íŠ¸ë¦­ìŠ¤ ìƒì„±
+				for ( unsigned int j = 0; j < m_modelConfigs[ i ].instanceCount; j++ )
+				{
+					const auto& instance = m_modelConfigs[ i ].instances[ j ];
+					XMMATRIX instanceMatrix = XMMatrixTranslation(
+						instance.position.x , instance.position.y , instance.position.z);
+
+					// ê¸°ë³¸ ëª¨ë¸ ë³€í™˜ê³¼ ì¸ìŠ¤í„´ìŠ¤ ë³€í™˜ ê²°í•©
+					instanceMatrices.push_back(instanceMatrix * worldMatrixVector[ i ]);
+
+					// ì¸ìŠ¤í„´ìŠ¤ ë³€í™˜ì€ ì•„ë˜ì²˜ëŸ¼ í•˜ëŠ”ê²Œ ëª…í™•í•œ ë°©ë²•ì´ê¸´ í•¨. forë¬¸ ë°˜ë³µë•Œë¬¸ì— ì¼ë‹¨ ìœ„ì²˜ëŸ¼ ì‚¬ìš©.
+					/*for ( unsigned int j = 0; j < m_modelConfigs[ i ].instanceCount; j++ )
+					{
+						const auto& instance = m_modelConfigs[ i ].instances[ j ];
+
+						// ì¸ìŠ¤í„´ìŠ¤ ë¡œì»¬ ë³€í™˜
+						XMMATRIX instanceLocalMatrix = XMMatrixTranslation(
+							instance.position.x , instance.position.y , instance.position.z);
+
+						// ë¡œì»¬ ë³€í™˜ â†’ ì›”ë“œ ë³€í™˜
+						XMMATRIX finalMatrix = instanceLocalMatrix * worldMatrixVector[ i ];
+
+						instanceMatrices.push_back(finalMatrix);
+					}*/
+				}
+
+				// ì¸ìŠ¤í„´ìŠ¤ ì¶©ëŒì²´ ì—…ë°ì´íŠ¸
+				m_Collision->UpdateInstanceColliders(i , instanceMatrices);
+			}
+		}
+	}
+
+	// ì¶©ëŒ ê²€ì‚¬ (ì¸ìŠ¤í„´ìŠ¤ í¬í•¨)
+	vector<pair<int , int>> collisions = m_Collision->CheckCollisionsWithInstances(drivingCarIndex);
+
+	bool isCurrentlyColliding = !collisions.empty();
+
+	// ì¶©ëŒì´ ìƒˆë¡œ ë°œìƒí–ˆì„ ë•Œë§Œ ì‚¬ìš´ë“œ ì¬ìƒ (ì´ì „ í”„ë ˆì„ì— ì¶©ëŒí•˜ì§€ ì•Šì•˜ê³ , í˜„ì¬ ì¶©ëŒ ì¤‘ì´ë©°, ì¿¨ë‹¤ìš´ì´ ëë‚¬ì„ ë•Œ)
+	if ( isCurrentlyColliding && !m_wasColliding )
+	{
+		// í¬ë˜ì‹œ ì‚¬ìš´ë“œ ì¬ìƒ
+		if ( m_Sound && m_soundEnabled )
+		{
+			m_Sound->PlaySound(SoundClass::SOUND_CRASH);
+		}
+	}
+
+	// ì¶©ëŒ ìƒíƒœ ì—…ë°ì´íŠ¸
+	m_wasColliding = isCurrentlyColliding;
+
+	if ( isCurrentlyColliding )
+	{
+		// ì¶©ëŒ ë°œìƒ - ì´ì „ ìœ„ì¹˜ë¡œ ë³µì›
+		m_Drive->HandleCollisionDetected();
+
+		// ===== FMOD ì¶©ëŒ ì‚¬ìš´ë“œ ì¬ìƒ =====
+		if ( m_Sound && m_soundEnabled )
+		{
+			m_Sound->PlaySound(SoundClass::SOUND_CRASH);
+		}
+
+
+		// ë³µì›ëœ ìœ„ì¹˜ë¡œ ì¶©ëŒì²´ë„ ì—…ë°ì´íŠ¸
+		const ModelConfig& config = m_modelConfigs[ drivingCarIndex ];
+		XMFLOAT3 carScale = XMFLOAT3(config.worldMatrix.scale.x ,
+			config.worldMatrix.scale.y ,
+			config.worldMatrix.scale.z);
+		XMMATRIX revertedMatrix = m_Drive->GetCarWorldMatrix(carScale);
+		m_Collision->UpdateCollider(drivingCarIndex , revertedMatrix);
+	}
+}
+
+bool GraphicsClass::IsPositionValid(const XMFLOAT3& position , int excludeModelIndex)
+{
+	if ( !m_Collision )
+		return true;
+
+	// ì°¨ëŸ‰ í¬ê¸° ì¶”ì •
+	CollisionClass::AABB testAABB;
+	testAABB.min = XMFLOAT3(position.x - 3.0f , position.y - 1.0f , position.z - 5.0f);
+	testAABB.max = XMFLOAT3(position.x + 3.0f , position.y + 2.0f , position.z + 5.0f);
+
+	// ë‹¤ë¥¸ ëª¨ë¸ë“¤ê³¼ì˜ ì¶©ëŒ ê²€ì‚¬
+	for ( int i = 0; i < NUM_OF_MODELS; i++ )
+	{
+		if ( i == excludeModelIndex || !m_Collision->IsCollisionEnabled(i) )
+			continue;
+
+		CollisionClass::AABB modelAABB = m_Collision->GetColliderAABB(i);
+		if ( m_Collision->CheckAABBCollision(testAABB , modelAABB) )
+		{
+			return false; // ì¶©ëŒí•˜ë¯€ë¡œ ìœ íš¨í•˜ì§€ ì•Šì€ ìœ„ì¹˜
+		}
+	}
+
+	return true;
+}
+
 
 bool GraphicsClass::Frame(InputClass* input)
 {
@@ -584,13 +843,18 @@ bool GraphicsClass::Frame(InputClass* input)
 	m_Timer->Frame();
 	float frameTime = m_Timer->GetTime() / 1000.0f; // convert to sec from milisec
 
+	if ( m_Sound )
+	{
+		m_Sound->Update();
+	}
+
 	// frame limit for speed calculate (60fps)
 	frameTime = std::min(frameTime, 0.0167f);
 
 	const XMFLOAT3 cameraRotation = m_Camera->GetRotation();
 	float normalRotation = cameraRotation.y + XM_PI; // normal rotation value against camera
 
-	// normalRotationÀ» 0~2¥ğ ¹üÀ§·Î Á¤±ÔÈ­
+	// normalRotationì„ 0~2Ï€ ë²”ìœ„ë¡œ ì •ê·œí™”
 	while (normalRotation > 2.0f * XM_PI)
 	{
 		normalRotation -= 2.0f * XM_PI;
@@ -609,43 +873,64 @@ bool GraphicsClass::Frame(InputClass* input)
 	const bool leftMousePressed = input->IsKeyDown(VK_LBUTTON);
 	const bool rightMousePressed = input->IsKeyDown(VK_RBUTTON);
 
-	if (m_isLoading || !m_loadingComplete)
+	if ( m_isLoading || !m_loadingComplete )
 	{
 		return RenderLoadingScreen();
 	}
 
-	// Additional matrix system for driving with car models //
-	XMMATRIX worldMatrix[NUM_OF_MODELS];
-	for (int i = 0; i < NUM_OF_MODELS; i++)
+	// World matrix ì„¤ì •
+	XMMATRIX worldMatrix[ NUM_OF_MODELS ];
+	for ( int i = 0; i < NUM_OF_MODELS; i++ )
 	{
-		m_D3D->GetWorldMatrix(worldMatrix[i]);
+		m_D3D->GetWorldMatrix(worldMatrix[ i ]);
 	}
 
-	// World matrix setting by json settings
-	for (int i = 0; i < NUM_OF_MODELS && i < m_modelConfigs.size(); i++)
+	// ì›”ë“œ ë§¤íŠ¸ë¦­ìŠ¤ ì ìš©
+	for ( int i = 0; i < NUM_OF_MODELS && i < m_modelConfigs.size(); i++ )
 	{
-		const ModelConfig& config = m_modelConfigs[i];
+		const ModelConfig& config = m_modelConfigs[ i ];
 
-		// Check the model is driving.
-		if (m_Drive->IsDriving() && m_Drive->GetDrivingCarIndex() == i)
+		if ( m_Drive->IsDriving() && m_Drive->GetDrivingCarIndex() == i )
 		{
-			// car models
-			XMFLOAT3 carScale = XMFLOAT3(config.worldMatrix.scale.x,
-				config.worldMatrix.scale.y,
+			XMFLOAT3 carScale = XMFLOAT3(config.worldMatrix.scale.x ,
+				config.worldMatrix.scale.y ,
 				config.worldMatrix.scale.z);
-			worldMatrix[i] = m_Drive->GetCarWorldMatrix(carScale);
+			worldMatrix[ i ] = m_Drive->GetCarWorldMatrix(carScale);
 		}
 		else
 		{
-			// other models
-			worldMatrix[i] =
-				XMMatrixScaling(config.worldMatrix.scale.x, config.worldMatrix.scale.y, config.worldMatrix.scale.z) *
+			worldMatrix[ i ] =
+				XMMatrixScaling(config.worldMatrix.scale.x , config.worldMatrix.scale.y , config.worldMatrix.scale.z) *
 				XMMatrixRotationX(config.worldMatrix.rotation.x) *
 				XMMatrixRotationY(config.worldMatrix.rotation.y) *
 				XMMatrixRotationZ(config.worldMatrix.rotation.z) *
-				XMMatrixTranslation(config.worldMatrix.translation.x, config.worldMatrix.translation.y, config.worldMatrix.translation.z);
+				XMMatrixTranslation(config.worldMatrix.translation.x , config.worldMatrix.translation.y , config.worldMatrix.translation.z);
 		}
 	}
+
+	// ì¶©ëŒì²´ ì—…ë°ì´íŠ¸
+	if ( m_Collision && m_Collision->IsCollisionSystemEnabled() )
+	{
+		// ì •ì  ê°ì²´ë“¤ ì—…ë°ì´íŠ¸ (í•œ ë²ˆë§Œ)
+		static bool staticCollidersUpdated = false;
+		if ( !staticCollidersUpdated )
+		{
+			vector<XMMATRIX> worldMatrixVector(worldMatrix , worldMatrix + NUM_OF_MODELS);
+			m_Collision->UpdateAllStaticColliders(worldMatrixVector);
+			staticCollidersUpdated = true;
+		}
+
+		// ìš´ì „ ì¤‘ì¸ ì°¨ëŸ‰ ì—…ë°ì´íŠ¸
+		if ( m_Drive->IsDriving() )
+		{
+			int drivingCarIndex = m_Drive->GetDrivingCarIndex();
+			m_Collision->UpdateCollider(drivingCarIndex , worldMatrix[ drivingCarIndex ]);
+		}
+
+		// ì¶©ëŒ ì²˜ë¦¬
+		ProcessCollisions();
+	}
+
 
 	// Select car (picking)
 	HandleCarPicking(input);
@@ -699,15 +984,15 @@ bool GraphicsClass::Render(float rotation, float normalRotation)
 
 	XMFLOAT3 cameraPos = m_Camera->GetPosition();
 
-	// JSON¿¡¼­ ·ÎµåµÈ ¼³Á¤À» »ç¿ëÇÏ¿© ¿ùµå ¸ÅÆ®¸¯½º ¼³Á¤
+	// JSONì—ì„œ ë¡œë“œëœ ì„¤ì •ì„ ì‚¬ìš©í•˜ì—¬ ì›”ë“œ ë§¤íŠ¸ë¦­ìŠ¤ ì„¤ì •
 	for (int i = 0; i < NUM_OF_MODELS && i < m_modelConfigs.size(); i++)
 	{
 		const ModelConfig& config = m_modelConfigs[i];
 
-		// ¿îÀü ÁßÀÎ Â÷·®ÀÎÁö È®ÀÎ
+		// ìš´ì „ ì¤‘ì¸ ì°¨ëŸ‰ì¸ì§€ í™•ì¸
 		if (m_Drive->IsDriving() && m_Drive->GetDrivingCarIndex() == i)
 		{
-			// ¿îÀü ÁßÀÎ Â÷·®Àº DriveClass¿¡¼­ Á¦°øÇÏ´Â ¸ÅÆ®¸¯½º »ç¿ë (JSON ½ºÄÉÀÏ Àû¿ë)
+			// ìš´ì „ ì¤‘ì¸ ì°¨ëŸ‰ì€ DriveClassì—ì„œ ì œê³µí•˜ëŠ” ë§¤íŠ¸ë¦­ìŠ¤ ì‚¬ìš© (JSON ìŠ¤ì¼€ì¼ ì ìš©)
 			XMFLOAT3 carScale = XMFLOAT3(config.worldMatrix.scale.x,
 				config.worldMatrix.scale.y,
 				config.worldMatrix.scale.z);
@@ -715,7 +1000,7 @@ bool GraphicsClass::Render(float rotation, float normalRotation)
 		}
 		else
 		{
-			// ÀÏ¹İ ¸ğµ¨µéÀº JSON ¼³Á¤ »ç¿ë
+			// ì¼ë°˜ ëª¨ë¸ë“¤ì€ JSON ì„¤ì • ì‚¬ìš©
 			worldMatrix[i] =
 				XMMatrixScaling(config.worldMatrix.scale.x, config.worldMatrix.scale.y, config.worldMatrix.scale.z) *
 				XMMatrixRotationX(config.worldMatrix.rotation.x) *
@@ -727,7 +1012,7 @@ bool GraphicsClass::Render(float rotation, float normalRotation)
 
 	m_D3D->TurnZBufferOff();
 
-	// Sky sphere model (background) - ¿îÀü Áß¿¡µµ ¿ùµå ¸ÅÆ®¸¯½º ±×´ë·Î »ç¿ë
+	// Sky sphere model (background) - ìš´ì „ ì¤‘ì—ë„ ì›”ë“œ ë§¤íŠ¸ë¦­ìŠ¤ ê·¸ëŒ€ë¡œ ì‚¬ìš©
 	m_Model[NUM_OF_MODELS - 1]->Render(m_D3D->GetDeviceContext());
 	result = m_TextureShader->Render(m_D3D->GetDeviceContext(), m_Model[NUM_OF_MODELS - 1]->GetIndexCount(),
 		instanceCount[NUM_OF_MODELS - 1], worldMatrix[NUM_OF_MODELS - 1], viewMatrix, projectionMatrix,
@@ -768,19 +1053,32 @@ bool GraphicsClass::Render(float rotation, float normalRotation)
 
 	m_D3D->TurnOffAlphaBlending();
 
-	if (m_showText)
+	if ( m_showText )
 	{
-		m_Font->Render(static_cast<int>(m_totalPolygons),
-			m_Fps->GetFps(),
-			m_Cpu->GetCpuPercentage(),
+		m_Font->Render(static_cast< int >( m_totalPolygons ) ,
+			m_Fps->GetFps() ,
+			m_Cpu->GetCpuPercentage() ,
 			m_objectCount);
 
 		m_Font->RenderTitle();
 
-		if (m_Picking)
+		if ( m_Picking )
 		{
-			m_Font->RenderPickingStatus(m_Picking->GetPickedModelName(),
+			m_Font->RenderPickingStatus(m_Picking->GetPickedModelName() ,
 				m_Picking->IsPickingActive());
+		}
+
+		if ( m_showCollisionInfo && m_Collision && m_Drive )
+		{
+			m_Font->RenderCollisionDebug(m_Collision , m_Drive , m_modelNames);
+		}
+
+		if ( m_Drive )
+		{
+			m_Font->RenderLapTime(m_Drive);
+			m_Font->RenderBestLapTime(m_Drive);
+			m_Dashboard->Render(m_Drive);
+			m_Font->RenderDashboardSpeed(m_Drive);
 		}
 	}
 
@@ -795,13 +1093,42 @@ void GraphicsClass::ProcessDriving(InputClass* input, float deltaTime) const
 	if (!m_Drive)
 		return;
 
-	// ¿îÀü ¾÷µ¥ÀÌÆ®
+	// ìš´ì „ ì—…ë°ì´íŠ¸
 	m_Drive->UpdateDriving(input, deltaTime);
 
-	// Ä«¸Ş¶ó ¾÷µ¥ÀÌÆ®
-	if (m_Drive->IsDriving())
+	// ì¹´ë©”ë¼ ì—…ë°ì´íŠ¸
+	if ( m_Drive->IsDriving() )
 	{
 		m_Drive->UpdateCamera(m_Camera);
+
+		if ( m_Sound && m_soundEnabled )
+		{
+			float currentSpeed = abs(m_Drive->GetCurrentSpeed());
+			float maxSpeed = m_Drive->GetMaxSpeed();
+
+			// ê°€ì† ì¤‘ì¸ì§€ í™•ì¸
+			bool isAccelerating = input->IsKeyDown('W') || input->IsKeyDown(VK_UP);
+
+			// ì—”ì§„ ì‚¬ìš´ë“œ ì—…ë°ì´íŠ¸
+			m_Sound->UpdateEngineSound(currentSpeed , maxSpeed , isAccelerating , deltaTime);
+		}
+
+		// Starting line í†µê³¼ ê°ì§€
+		XMFLOAT3 carPos = m_Drive->GetCarPosition();
+
+		// ì°¨ëŸ‰ì´ starting line ì˜ì—­ì„ ì§€ë‚˜ëŠ”ì§€ ì²´í¬
+		float startLineX = 147.6f;
+		float startLineZ = -153.0f;
+		float detectionRangeX = 5.0f;  // X ë°©í–¥ ê°ì§€ ë²”ìœ„
+		float detectionRangeZ = 40.0f;   // Z ë°©í–¥ ê°ì§€ ë²”ìœ„
+
+		bool isOnStartLine = ( carPos.x > startLineX - detectionRangeX &&
+			carPos.x < startLineX + detectionRangeX &&
+			carPos.z > startLineZ - detectionRangeZ &&
+			carPos.z < startLineZ + detectionRangeZ );
+
+		// ë§¤ í”„ë ˆì„ ëˆ„ì í•˜ì—¬ ë© íƒ€ì„ ê³„ì‚°(deltaTime)
+		m_Drive->CheckStartingLineCrossing(isOnStartLine , deltaTime);
 	}
 }
 
@@ -812,35 +1139,46 @@ void GraphicsClass::HandleCarPicking(InputClass* input)
 
 	bool currentPickingState = m_Picking->IsPickingActive();
 
-	// ÇÇÅ· »óÅÂ°¡ È°¼ºÈ­µÇ¾úÀ» ¶§ (Â÷·®ÀÌ ¼±ÅÃµÊ)
+	// í”¼í‚¹ ìƒíƒœê°€ í™œì„±í™”ë˜ì—ˆì„ ë•Œ (ì°¨ëŸ‰ì´ ì„ íƒë¨)
 	if (currentPickingState && !m_previousPickingState)
 	{
 		int pickedIndex = m_Picking->GetPickedModelIndex();
 
-		// Â÷·® ¸ğµ¨ÀÎÁö È®ÀÎ (ÀÎµ¦½º 1~6)
+		// ì°¨ëŸ‰ ëª¨ë¸ì¸ì§€ í™•ì¸ (ì¸ë±ìŠ¤ 1~6)
 		if (pickedIndex >= 1 && pickedIndex <= 6)
 		{
-			// ¿ø·¡ Ä«¸Ş¶ó À§Ä¡/È¸Àü ÀúÀå
+			// ì‚¬ìš´ë“œ ì¬ìƒ
+			if ( m_Sound && m_soundEnabled )
+			{
+				m_Sound->StartEngineSound();
+			}
+
+			// ì›ë˜ ì¹´ë©”ë¼ ìœ„ì¹˜/íšŒì „ ì €ì¥
 			m_originalCameraPos = m_Camera->GetPosition();
 			m_originalCameraRot = m_Camera->GetRotation();
 
-			// Â÷·®ÀÇ ÃÊ±â À§Ä¡¿Í È¸Àü °¡Á®¿À±â
+			// ì°¨ëŸ‰ì˜ ì´ˆê¸° ìœ„ì¹˜ì™€ íšŒì „ ê°€ì ¸ì˜¤ê¸°
 			XMFLOAT3 carPos = GetCarInitialPosition(pickedIndex);
 			XMFLOAT3 carRot = GetCarInitialRotation(pickedIndex);
 
-			// ¿îÀü ½ÃÀÛ
+			// ìš´ì „ ì‹œì‘
 			m_Drive->StartDriving(pickedIndex, carPos, carRot);
 		}
 	}
-	// ÇÇÅ· »óÅÂ°¡ ºñÈ°¼ºÈ­µÇ¾úÀ» ¶§ (Â÷·® ¼±ÅÃ ÇØÁ¦)
+	// í”¼í‚¹ ìƒíƒœê°€ ë¹„í™œì„±í™”ë˜ì—ˆì„ ë•Œ (ì°¨ëŸ‰ ì„ íƒ í•´ì œ)
 	else if (!currentPickingState && m_previousPickingState)
 	{
 		if (m_Drive->IsDriving())
 		{
-			// ¿îÀü ÁßÁö
+			// ìš´ì „ ì¤‘ì§€
 			m_Drive->StopDriving();
 
-			// ¿ø·¡ Ä«¸Ş¶ó À§Ä¡/È¸Àü º¹¿ø
+			if ( m_Sound )
+			{
+				m_Sound->StopEngineSound();
+			}
+
+			// ì›ë˜ ì¹´ë©”ë¼ ìœ„ì¹˜/íšŒì „ ë³µì›
 			m_Camera->SetPosition(m_originalCameraPos.x, m_originalCameraPos.y, m_originalCameraPos.z);
 			m_Camera->SetRotation(m_originalCameraRot.x, m_originalCameraRot.y, m_originalCameraRot.z);
 		}

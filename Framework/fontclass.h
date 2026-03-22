@@ -8,11 +8,12 @@
 #include <dwrite_1.h>
 #include <d3d11.h>
 #include <string>
-#include "d3dclass.h"
-
 #include <locale>
-#include <codecvt>
-#include <string>
+#include <vector>
+
+#include "d3dclass.h"
+#include "collisionclass.h"
+#include "driveclass.h"
 
 using namespace std;
 using namespace D2D1;
@@ -33,11 +34,25 @@ public:
 
     bool RenderLoadingScreen(float progress);
 
+	bool RenderCollisionDebug(CollisionClass* collision , DriveClass* drive ,
+		const vector<string>& modelNames);
+
+	bool RenderLapTime(DriveClass* drive);
+
+	bool RenderBestLapTime(DriveClass* drive);
+
+	bool RenderDashboardSpeed(DriveClass* drive);
+
+private:
+	void SetRectBackground(D2D1_RECT_F rect) const;
+
 private:
     ID2D1RenderTarget* m_renderTarget;
     IDWriteFactory* m_writeFactory;
     IDWriteTextFormat* m_textFormat;
     IDWriteTextFormat* m_titleFormat;
+	IDWriteTextFormat* m_lapFormat;
+	IDWriteTextFormat* m_bestLapFormat;
     ID2D1SolidColorBrush* m_brush;
     HWND m_hwnd;
 

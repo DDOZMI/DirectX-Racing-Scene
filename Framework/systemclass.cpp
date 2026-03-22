@@ -185,19 +185,23 @@ bool SystemClass::Frame()
 	static bool iKeyPressed = false;  // ambient light toggle flag
 	static bool oKeyPressed = false;  // diffuse light toggle flag  
 	static bool pKeyPressed = false;  // specular light toggle flag
+	static bool bKeyPressed = false;  // B키: 충돌 정보 토글
+	static bool nKeyPressed = false;  // N키: 충돌 박스 시각화 토글
+	static bool mKeyPressed = false;  // M키: 모든 모델 충돌 활성화/비활성화 토글
+	static bool f9KeyPressed = false;
 
 	float deltaTime = m_Timer->GetTime();
 	float cameraSpeed = 0.1f;
 
 	if (m_Graphics && !m_Graphics->IsLoadingComplete())
 	{
-		// ESC Ű�� ���Ḹ ���
+		// ESC 키로 종료만 허용
 		if (m_Input->IsKeyDown(VK_ESCAPE))
 		{
 			return false;
 		}
 
-		// �ε� ȭ�鸸 ������
+		// 로딩 화면만 렌더링
 		bool result = m_Graphics->Frame(m_Input);
 		return result;
 	}
@@ -327,6 +331,32 @@ bool SystemClass::Frame()
 		tKeyPressed = false;
 	}
 
+	if ( m_Input->IsKeyDown('B') )
+	{
+		if ( !bKeyPressed )
+		{
+			m_Graphics->ToggleCollisionInfo();
+			bKeyPressed = true;
+		}
+	}
+	else
+	{
+		bKeyPressed = false;
+	}
+
+	if ( m_Input->IsKeyDown('M') )
+	{
+		if ( !mKeyPressed )
+		{
+			m_Graphics->ToggleCollisionSystem();
+			mKeyPressed = true;
+		}
+	}
+	else
+	{
+		mKeyPressed = false;
+	}
+
 
 	if (m_Input->IsKeyDown('1'))
 	{
@@ -359,6 +389,56 @@ bool SystemClass::Frame()
 	else if (m_Input->IsKeyDown('8'))
 	{
 		m_Graphics->CycleLightingMode(2);
+	}
+
+	// 사운드 관련 키 입력 처리
+	if ( m_Input->IsKeyDown(VK_F9) )  // F9 키로 사운드 토글
+	{
+		// 키가 처음 눌렸을 때만 토글 (중복 실행 방지)
+		if ( !f9KeyPressed )
+		{
+			m_Graphics->ToggleSound();
+			f9KeyPressed = true;
+		}
+	}
+	else
+	{
+		f9KeyPressed = false;
+	}
+
+	// 볼륨 조절 (+ 키로 증가, - 키로 감소)
+	static int currentVolume = 100;  // 기본 볼륨 100%
+
+	if ( m_Input->IsKeyDown(VK_OEM_PLUS) || m_Input->IsKeyDown(VK_ADD) )  // + 키
+	{
+		static bool plusKeyPressed = false;
+		if ( !plusKeyPressed )
+		{
+			currentVolume = min(100 , currentVolume + 10);
+			m_Graphics->SetSoundVolume(currentVolume);
+			plusKeyPressed = true;
+		}
+	}
+	else
+	{
+		static bool plusKeyPressed = false;
+		plusKeyPressed = false;
+	}
+
+	if ( m_Input->IsKeyDown(VK_OEM_MINUS) || m_Input->IsKeyDown(VK_SUBTRACT) )  // - 키
+	{
+		static bool minusKeyPressed = false;
+		if ( !minusKeyPressed )
+		{
+			currentVolume = max(0 , currentVolume - 10);
+			m_Graphics->SetSoundVolume(currentVolume);
+			minusKeyPressed = true;
+		}
+	}
+	else
+	{
+		static bool minusKeyPressed = false;
+		minusKeyPressed = false;
 	}
 
 

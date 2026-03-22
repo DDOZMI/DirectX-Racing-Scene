@@ -34,7 +34,7 @@ public:
         vector<XMMATRIX>& worldMatrices, vector<string>& modelNames,
         bool leftMousePressed, bool rightMousePressed);
 
-    // ÇöÀç picking »óÅÂ ¹İÈ¯
+    // í˜„ì¬ picking ìƒíƒœ ë°˜í™˜
     string GetPickedModelName() const { return m_pickedModelName; }
     bool IsPickingActive() const { return m_isPickingActive; }
     int GetPickedModelIndex() const { return m_pickedModelIndex; }
@@ -42,12 +42,12 @@ public:
 private:
     void CreatePickingRayFromScreenCenter(CameraClass* camera, XMVECTOR& rayPos, XMVECTOR& rayDir);
 
-    // Ray-Triangle ±³Â÷ Å×½ºÆ®
+    // Ray-Triangle êµì°¨ í…ŒìŠ¤íŠ¸
     float TestRayTriangleIntersection(XMVECTOR rayPos, XMVECTOR rayDir,
         vector<VertexType>& vertices, vector<unsigned long>& indices,
         XMMATRIX worldMatrix);
 
-    // Á¡ÀÌ »ï°¢Çü ³»ºÎ¿¡ ÀÖ´ÂÁö È®ÀÎ
+    // ì ì´ ì‚¼ê°í˜• ë‚´ë¶€ì— ìˆëŠ”ì§€ í™•ì¸
     bool IsPointInTriangle(XMVECTOR& v1, XMVECTOR& v2, XMVECTOR& v3, XMVECTOR& point);
 
     bool ExtractModelData(ModelClass* model, vector<VertexType>& vertices, vector<unsigned long>& indices);
@@ -59,7 +59,7 @@ private:
     string m_pickedModelName;
     int m_pickedModelIndex;
 
-    // ¸¶¿ì½º »óÅÂ ÃßÀû
+    // ë§ˆìš°ìŠ¤ ìƒíƒœ ì¶”ì 
     bool m_previousLeftMouseState;
     bool m_previousRightMouseState;
 };
