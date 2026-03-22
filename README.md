@@ -1,7 +1,7 @@
 #  Interactive scene using DirectX11
 
 시연 영상(클릭)<br>
-[![Video Label](http://img.youtube.com/vi/Cyxn7jwYV2s/0.jpg)](https://youtu.be/Cyxn7jwYV2s)
+[![Video Label](http://img.youtube.com/vi/i9_w4YrA8I4/0.jpg)](https://youtu.be/i9_w4YrA8I4)
 
 **내용**
 - 다수의 모델과 인스턴싱을 이용해 씬 구성
@@ -20,7 +20,8 @@
 - 차량 모델에 대해 마우스 피킹 적용
 - 피킹으로 고정된 차량에 카메라를 부착, 같이 움직이며 조작할 수 있도록 설정
 - 차량 모델의 움직임에 대하여 현실적인 가속, 조향 적용(하드코딩)
-
+- Lap time, Speed 등 정보를 알 수 있는 상호작용 가능한 GUI 배치
+- 속력에 따라 달라지는 사운드 설정(FMOD)
 ---
 
 **어려웠던 점**
