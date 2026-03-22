@@ -107,8 +107,8 @@ PixelInputType TextureVertexShader(VertexInputType input)
     }
     else if (currentModelIndex == 14) // Balloon model
     {
-        float orbitSpeed = 0.01f; // ∞¯¿¸ º”µµ
-        float orbitRadius = 2000.0f; // ∞¯¿¸ π›¡ˆ∏ß
+        float orbitSpeed = 0.01f; // Í≥µÏ†Ñ ÏÜçÎèÑ
+        float orbitRadius = 2000.0f; // Í≥µÏ†Ñ Î∞òÏßÄÎ¶Ñ
         float orbitAngle = globalTime * orbitSpeed;
 
 		float3 orbitOffset = float3(
@@ -180,10 +180,10 @@ float4 TexturePixelShader(PixelInputType input) : SV_TARGET
 	    discard;
 
 	// Lighting Process Start //
-    float4 color = float4(0, 0, 0, 1); // √ ±‚∞™ ∞À¡§ªˆ
+    float4 color = float4(0, 0, 0, 1); // Ï¥àÍ∏∞Í∞í Í≤ÄÏ†ïÏÉâ
     float4 specularTotal = float4(0, 0, 0, 0);
 
-    // Ambient Light ¿˚øÎ
+    // Ambient Light Ï†ÅÏö©
     if (ambientEnabled)
     {
         color += ambientColor;
@@ -198,13 +198,13 @@ float4 TexturePixelShader(PixelInputType input) : SV_TARGET
 
     if (lightIntensity > 0.0f)
     {
-        // Diffuse Light ¿˚øÎ
+        // Diffuse Light Ï†ÅÏö©
         if (diffuseEnabled)
         {
             color += diffuseColor * lightIntensity;
         }
 
-        // Specular Light ∞ËªÍ
+        // Specular Light Í≥ÑÏÇ∞
         if (specularEnabled)// && applySpecular)
         {
             float3 reflection = normalize(2 * lightIntensity * input.normal - lightDir);
@@ -215,7 +215,7 @@ float4 TexturePixelShader(PixelInputType input) : SV_TARGET
 	// Calculate Point Light //
 	float4 pointLightTotal = float4(0, 0, 0, 0);
 
-	// 0π¯
+	// 0Î≤à
 	{
 	    float3 lightToPixel = pointLightPosition[0].xyz - input.worldPos;
 	    float distance = length(lightToPixel);
@@ -235,7 +235,7 @@ float4 TexturePixelShader(PixelInputType input) : SV_TARGET
 	    }
 	}
 
-	// 1π¯
+	// 1Î≤à
 	{
 	    float3 lightToPixel = pointLightPosition[1].xyz - input.worldPos;
 	    float distance = length(lightToPixel);
@@ -255,7 +255,7 @@ float4 TexturePixelShader(PixelInputType input) : SV_TARGET
 	    }
 	}
 
-	// 2π¯
+	// 2Î≤à
 	{
 	    float3 lightToPixel = pointLightPosition[2].xyz - input.worldPos;
 	    float distance = length(lightToPixel);

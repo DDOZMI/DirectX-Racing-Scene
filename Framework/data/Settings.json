@@ -50,9 +50,9 @@
         "./data/car/mclaren/rearWheel.dds"
       ],
       "worldMatrix": {
-        "scale": [2.8, 2.8, 2.8],
+        "scale": [2.3, 2.3, 2.3],
         "rotation": [0.0, 4.71238898, 0.0],
-        "translation": [128.0, 5.0, -138.0]
+        "translation": [128.0, 0.0, -138.0]
       }
     },
     {
@@ -74,9 +74,9 @@
         "./data/car/audi/window.dds"
       ],
       "worldMatrix": {
-        "scale": [5.0, 5.0, 5.0],
-        "rotation": [1.57079633, 4.71238898, 0.0],
-        "translation": [98.2, 7.6, -138.0]
+        "scale": [4.2, 4.2, 4.2],
+        "rotation": [0.0, 4.71238898, 0.0],
+        "translation": [103.4, 0.0, -138.2]
       }
     },
     {
@@ -103,9 +103,9 @@
         "./data/car/porsche/wheel.dds"
       ],
       "worldMatrix": {
-        "scale": [0.7, 0.7, 0.7],
-        "rotation": [3.14159265, 4.71238898, 0.0],
-        "translation": [109.6, 6.4, -124.3]
+        "scale": [0.6, 0.6, 0.6],
+        "rotation": [0.0, 4.71238898, 0.0],
+        "translation": [109.6, 0.0, -124.3]
       }
     },
     {
@@ -128,9 +128,9 @@
         "./data/car/pagani/window.dds"
       ],
       "worldMatrix": {
-        "scale": [2.9, 2.9, 2.9],
+        "scale": [2.3, 2.3, 2.3],
         "rotation": [0.0, 4.71238898, 0.0],
-        "translation": [91.0, 4.8, -124.3]
+        "translation": [91.0, 0.0, -124.3]
       }
     },
     {
@@ -153,9 +153,9 @@
         "./data/car/ford/window.dds"
       ],
       "worldMatrix": {
-        "scale": [2.7, 2.7, 2.7],
-        "rotation": [0.0, 4.71238898, 1.57079633],
-        "translation": [80.0, 4.8, -138.0]
+        "scale": [2.3, 2.3, 2.3],
+        "rotation": [0.0, 4.71238898, 0.0],
+        "translation": [80.0, 0.0, -138.0]
       }
     },
     {
@@ -178,9 +178,9 @@
         "./data/car/maserati/glass.dds"
       ],
       "worldMatrix": {
-        "scale": [14.0, 14.0, 14.0],
-        "rotation": [1.57079633, 4.71238898, 0.0],
-        "translation": [69.0, 6.6, -124.8]
+        "scale": [12.0, 12.0, 12.0],
+        "rotation": [0.0, 4.71238898, 0.0],
+        "translation": [69.0, 0.0, -124.8]
       }
     },
     {
@@ -465,9 +465,9 @@
         "./data/skydome.dds"
       ],
       "worldMatrix": {
-        "scale": [1000.0, 1000.0, 1000.0],
+        "scale": [820.0, 820.0, 820.0],
         "rotation": [1.57079633, 0.0, 0.0],
-        "translation": [12.0, -580.0, -9.0]
+        "translation": [240.0, -580.0, 110.0]
       }
     }
   ]
